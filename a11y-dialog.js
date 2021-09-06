@@ -21,7 +21,6 @@ function A11yDialog(element) {
   this.shown = false
   this._id = this.$el.getAttribute('data-a11y-dialog') || this.$el.id
   this._previouslyFocused = null
-  this._listeners = {}
 
   // Initialise everything needed for the dialog to work properly
   this.create()
@@ -62,8 +61,8 @@ A11yDialog.prototype.create = function () {
     }.bind(this)
   )
 
-  // Execute all callbacks registered for the `create` event
-  this._fire('create')
+  // Dispatch a custom `create` event
+  this.$el.dispatchEvent(new CustomEvent('create'))
 
   return this
 }
@@ -97,8 +96,8 @@ A11yDialog.prototype.show = function (event) {
   document.body.addEventListener('focus', this._maintainFocus, true)
   document.addEventListener('keydown', this._bindKeypress)
 
-  // Execute all callbacks registered for the `show` event
-  this._fire('show', event)
+  // Dispatch custom `show` event
+  this.$el.dispatchEvent(new CustomEvent('show', { detail: event }))
 
   return this
 }
@@ -132,8 +131,8 @@ A11yDialog.prototype.hide = function (event) {
   document.body.removeEventListener('focus', this._maintainFocus, true)
   document.removeEventListener('keydown', this._bindKeypress)
 
-  // Execute all callbacks registered for the `hide` event
-  this._fire('hide', event)
+  // Dispatch a custom `hide` event
+  this.$el.dispatchEvent(new CustomEvent('hide', { detail: event }))
 
   return this
 }
@@ -162,11 +161,8 @@ A11yDialog.prototype.destroy = function () {
     }.bind(this)
   )
 
-  // Execute all callbacks registered for the `destroy` event
-  this._fire('destroy')
-
-  // Keep an object of listener types mapped to callback functions
-  this._listeners = {}
+  // Dispatch a custom `destroy` event
+  this.$el.dispatchEvent(new CustomEvent('destroy'))
 
   return this
 }
@@ -178,11 +174,7 @@ A11yDialog.prototype.destroy = function () {
  * @param {Function} handler
  */
 A11yDialog.prototype.on = function (type, handler) {
-  if (typeof this._listeners[type] === 'undefined') {
-    this._listeners[type] = []
-  }
-
-  this._listeners[type].push(handler)
+  this.$el.addEventListener(type, handler)
 
   return this
 }
@@ -194,36 +186,9 @@ A11yDialog.prototype.on = function (type, handler) {
  * @param {Function} handler
  */
 A11yDialog.prototype.off = function (type, handler) {
-  var index = (this._listeners[type] || []).indexOf(handler)
-
-  if (index > -1) {
-    this._listeners[type].splice(index, 1)
-  }
+  this.$el.removeEventListener(type, handler)
 
   return this
-}
-
-/**
- * Iterate over all registered handlers for given type and call them all with
- * the dialog element as first argument, event as second argument (if any). Also
- * dispatch a custom event on the DOM element itself to make it possible to
- * react to the lifecycle of auto-instantiated dialogs.
- *
- * @access private
- * @param {string} type
- * @param {Event} event
- */
-A11yDialog.prototype._fire = function (type, event) {
-  var listeners = this._listeners[type] || []
-  var domEvent = new CustomEvent(type, { detail: event })
-
-  this.$el.dispatchEvent(domEvent)
-
-  listeners.forEach(
-    function (listener) {
-      listener(this.$el, event)
-    }.bind(this)
-  )
 }
 
 /**
